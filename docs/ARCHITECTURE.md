@@ -1,5 +1,7 @@
 # SignalOps architecture notes
 
+Also read **[Setup](./SETUP.md)** to run the app and **[Developers](./DEVELOPERS.md)** for repository structure, modules, and day-to-day engineering conventions.
+
 ## Design principles
 
 1. **Human-in-the-loop by default.** AI proposes; workflows that touch customers or production systems require explicit approval artifacts (`approval_requests`, draft states, audit logs).

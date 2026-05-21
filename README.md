@@ -1,119 +1,145 @@
 # SignalOps
 
-SignalOps is a **human-in-the-loop** operational coordination and project intelligence platform. It is **not** a chatbot product: AI proposes summaries, drafts, risks, and timeline signals, while **people approve** outbound actions and structural changes.
+SignalOps is a **human-in-the-loop** operational coordination and project intelligence platform. It is **not** a generic chatbot: AI proposes summaries, drafts, risks, and timeline signals, while **people approve** outbound actions and material state changes.
 
-This repository ships a **production-oriented** Next.js + Supabase reference implementation with modular services, typed validation, operational event fan-out, integration webhooks, and an AI abstraction layer that **never** self-executes customer-facing workflows.
+This repository is a **production-oriented** reference app: **Next.js (App Router)** + **Supabase** (Postgres, Auth, Storage, Realtime) + typed APIs, modular services, webhooks, and an **AI abstraction** that never self-executes customer-facing workflows.
 
-## Tech stack
+---
 
-- **Frontend**: Next.js (App Router) + React + TypeScript + Tailwind + shadcn-style UI primitives
-- **Backend**: Next.js Route Handlers + Server Actions
-- **Database / Auth / Storage / Realtime**: Supabase (PostgreSQL + Auth + Storage + Realtime)
-- **State**: Zustand (UI shell state; server remains source of truth)
-- **Validation**: Zod
-- **Jobs**: BullMQ when `REDIS_URL` is set; otherwise an in-memory queue for local development
-- **AI**: OpenAI-ready provider (`OPENAI_API_KEY`) with graceful degradation
+## Documentation
 
-## Repository layout
+| Doc | What it is for |
+| --- | --- |
+| **[docs/SETUP.md](./docs/SETUP.md)** | Full setup: Supabase project, env vars, migrations in order, bootstrap data, Docker, worker, troubleshooting |
+| **[docs/DEVELOPERS.md](./docs/DEVELOPERS.md)** | **Start here as a dev**: repository structure, modules, auth/RLS, conventions, extension checklist |
+| **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | Design principles, layering, multi-tenant model, intentional non-goals |
+| **[docs/README.md](./docs/README.md)** | Index of all documentation |
 
-```
-src/
-  app/                 # Routes (marketing, auth, app shell, API handlers)
-  components/          # UI + feature components
-  hooks/               # Client hooks (Supabase Realtime example)
-  lib/                 # env, logger, AI providers, queue ports, Supabase helpers, validations
-  server/              # Domain services (integrations, operational engine)
-  stores/              # Zustand stores
-supabase/migrations/   # SQL schema, RLS, triggers
-scripts/worker.ts      # BullMQ worker entrypoint (requires Redis)
-```
+---
 
-## Getting started
+## Setup (quick start)
 
-1. **Install dependencies**
+> For screenshots-level detail, auth URL configuration, and common errors, use **[docs/SETUP.md](./docs/SETUP.md)**.
+
+### Prerequisites
+
+- **Node.js 20+**
+- A **Supabase** project
+
+### Steps
+
+1. **Install**
 
    ```bash
    npm install
    ```
 
-2. **Configure environment**
+2. **Environment**
 
-   Copy `.env.example` to `.env.local` and fill in Supabase keys.
+   ```bash
+   cp .env.example .env.local
+   ```
 
-3. **Apply database schema**
+   Fill at minimum `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and (for webhooks / admin paths) `SUPABASE_SERVICE_ROLE_KEY`. See `.env.example` for the full list.
 
-   Run `supabase/migrations/20240521000000_signalops_initial.sql` in the Supabase SQL editor (or via the Supabase CLI against your project).
+3. **Database — run SQL migrations in order**
 
-4. **Bootstrap tenant data**
+   In the Supabase SQL editor (or via Supabase CLI linked to the project), execute:
 
-   After your first user signs up, insert an organization, workspace, project, and memberships. See `supabase/seed.sql` for commented templates.
+   1. `supabase/migrations/20240521000000_signalops_initial.sql`
+   2. `supabase/migrations/20240521120000_workspace_invite_accept.sql` (workspace invites RPC + policies)
 
-5. **Run the app**
+4. **Bootstrap data**
+
+   Sign up once via `/signup` so `auth.users` + `public.profiles` exist. Then run the commented SQL in **`supabase/seed.sql`** (replace `:user_id` with your user id from the Supabase dashboard) to create an organization, workspace, project, and memberships so RLS allows reads.
+
+5. **Run**
 
    ```bash
    npm run dev
    ```
 
-6. **Optional: background worker**
+   Open `http://localhost:3000`. Protected routes: `/dashboard`, `/projects`, `/settings`.
+
+6. **Optional — background worker (BullMQ)**
 
    ```bash
    export REDIS_URL=redis://localhost:6379
    npm run worker
    ```
 
+7. **Optional — Docker**
+
+   ```bash
+   docker compose up --build
+   ```
+
+---
+
+## Tech stack
+
+- **Frontend**: Next.js App Router, React, TypeScript, Tailwind, shadcn-style UI primitives (`src/components/ui`)
+- **Backend**: Route Handlers (`src/app/api`) + Server Actions (`src/app/actions`)
+- **Data**: Supabase Postgres with **RLS**; Auth; Storage-ready schema (transcripts can use `storage_path`)
+- **Validation**: Zod (`src/lib/validations`)
+- **Jobs**: BullMQ when `REDIS_URL` is set; otherwise in-memory queue (`src/lib/queue`)
+- **AI**: OpenAI-compatible provider behind `src/lib/ai` (graceful degradation without `OPENAI_API_KEY`)
+
+---
+
+## Repository layout (abbrev.)
+
+```
+docs/                    # SETUP, DEVELOPERS, ARCHITECTURE
+supabase/migrations/     # SQL schema + RLS (ordered)
+src/app/                 # Pages, layouts, API routes, actions
+src/components/          # UI + feature components
+src/lib/                 # supabase clients, ai, queue, logger, validations
+src/server/              # domain services + repositories
+scripts/worker.ts        # BullMQ worker entrypoint
+```
+
+A fuller tree and module responsibilities live in **[docs/DEVELOPERS.md](./docs/DEVELOPERS.md)**.
+
+---
+
 ## Human approval model
 
-- AI output for meeting transcripts creates `ai_suggestions` and `approval_requests` rows in a **pending** state.
-- Communication drafts remain in `pending_approval` until a PM approves.
-- Server action `src/app/actions/approvals.ts` records decisions and appends an `operational_events` audit entry.
+- Transcript ingestion creates **`ai_suggestions`** + **`approval_requests`** in a **pending** state (`src/app/api/projects/[id]/transcripts/route.ts`).
+- Communication drafts use **`pending_approval`** until approved.
+- **`src/app/actions/approvals.ts`** updates the approval, syncs linked entities, writes **`audit_logs`**, and appends **`operational_events`**.
 
-## Google Sheets layer (optional)
+---
 
-`GoogleSheetsSyncService` documents an optional mirror. **Operational warning:** Sheets are acceptable for early operational memory and stakeholder visibility, but they exhibit weaker concurrency semantics, auditing, and programmatic guarantees than PostgreSQL. Treat **Postgres as canonical** (`milestones`, `risks`, `project_memory`, `operational_events`) and migrate away from bi-directional Sheets if write volume or multi-editor contention grows.
+## Integrations (stubs + checklists)
 
-## Slack & Gmail integrations
+- **Slack**: `POST /api/webhooks/slack` — `SLACK_SIGNING_SECRET`, optional `SUPABASE_SERVICE_ROLE_KEY` for DB fan-out. See `src/server/services/integrations/slack-processing.ts` and `/settings/slack`.
+- **Gmail**: `POST /api/webhooks/gmail` — Pub/Sub placeholder; see `src/server/services/integrations/gmail-sync.ts` and `/settings/gmail`.
+- **Google Sheets**: optional mirror; Postgres remains canonical — see `GoogleSheetsSyncService` and **docs/ARCHITECTURE.md**.
 
-- **Slack**: `POST /api/webhooks/slack` verifies `SLACK_SIGNING_SECRET`, optionally fans out through Supabase with `SUPABASE_SERVICE_ROLE_KEY`, and enqueues `slack.event` jobs. See `src/server/services/integrations/slack-processing.ts` and `/settings/slack`.
-- **Gmail**: Pub/Sub push lands on `POST /api/webhooks/gmail` (OIDC verification should be added for production). See `src/server/services/integrations/gmail-sync.ts` and `/settings/gmail`.
+---
 
-## Operational event engine
+## Operational timeline
 
-`appendOperationalEvent` writes to `operational_events` and opportunistically enqueues downstream sync jobs (for example Sheets mirrors). This keeps a unified timeline across Slack, email, meetings, AI insights, and approvals.
+`appendOperationalEvent` (`src/server/services/operational/event-engine.ts`) writes **`operational_events`** and can enqueue downstream jobs (e.g. Sheets sync). This is the unified narrative across Slack, email, meetings, AI, and approvals.
+
+---
 
 ## Realtime
 
-`src/hooks/use-notifications-channel.ts` demonstrates subscribing to `notifications` inserts. Enable the `notifications` table (and other operational tables as needed) in the Supabase Realtime publication from the dashboard when you are ready for live updates.
+`src/hooks/use-notifications-channel.ts` shows how to subscribe to `notifications`. Enable tables in the Supabase **Realtime** publication from the dashboard when you are ready.
 
-## Docker
+---
 
-```bash
-docker compose up --build
-```
+## Deployment & security notes
 
-The compose file runs the web app and Redis. Provide `.env.local` with production-like values before deploying.
+- Rotate **`INTERNAL_JOB_SECRET`** and restrict **`POST /api/queue/internal`** to private networks or authenticated schedulers.
+- Never expose **`SUPABASE_SERVICE_ROLE_KEY`** to the browser; use only in trusted server code (e.g. verified webhooks).
+- Store third-party tokens in **Vault/KMS** in production — DB columns are placeholders.
+- Add your preferred **observability** stack; logs are JSON lines via `src/lib/logger.ts`.
 
-## Deployment notes
-
-- Rotate `INTERNAL_JOB_SECRET` and restrict `POST /api/queue/internal` to your private network or an authenticated scheduler.
-- Store Slack/Google tokens using Supabase Vault or a cloud KMS — the schema columns are placeholders.
-- Add observability (structured logs are JSON lines via `src/lib/logger.ts`) and error tracking (Sentry, etc.) in your environment.
-- Scale workers independently from the web tier when using BullMQ.
-
-## Security
-
-- Row Level Security enforces multi-tenant isolation across organizations, workspaces, and projects.
-- Service role keys must **never** ship to the browser; they are only for trusted server routes such as verified webhooks.
+---
 
 ## License
 
-Private / unlicensed by default — update this section for your distribution model.
-
-
-## Workspace invites
-
-After applying migrations, run `supabase/migrations/20240521120000_workspace_invite_accept.sql` (or keep it in order with the Supabase CLI) to add:
-
-- A workspace-member insert policy for admins
-- The `accept_workspace_invite(token)` RPC used by `/accept-invite`
-
-Workspace owners/admins can create invites from **Settings → Team & invites**. Invited users should create an account with the invited email, sign in, then redeem the token on `/accept-invite`.
+Private / unlicensed by default — update for your distribution model.
