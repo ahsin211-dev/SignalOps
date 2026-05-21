@@ -1,0 +1,14 @@
+-- Optional bootstrap data (run manually as a superuser / SQL editor after migration + first user signup).
+-- Replace :user_id with auth.users.id from the Supabase dashboard.
+
+-- INSERT INTO public.organizations (name, slug) VALUES ('Acme Corp', 'acme');
+-- INSERT INTO public.organization_members (organization_id, user_id, role)
+-- SELECT id, ':user_id'::uuid, 'owner' FROM public.organizations WHERE slug = 'acme';
+-- INSERT INTO public.workspaces (organization_id, name, slug)
+-- SELECT id, 'Core Delivery', 'core' FROM public.organizations WHERE slug = 'acme';
+-- INSERT INTO public.workspace_members (workspace_id, user_id, role)
+-- SELECT w.id, ':user_id'::uuid, 'owner' FROM public.workspaces w JOIN public.organizations o ON o.id = w.organization_id WHERE o.slug = 'acme';
+-- INSERT INTO public.projects (workspace_id, name, slug, health_score)
+-- SELECT w.id, 'SignalOps rollout', 'signalops-rollout', 72 FROM public.workspaces w JOIN public.organizations o ON o.id = w.organization_id WHERE o.slug = 'acme';
+-- INSERT INTO public.project_members (project_id, user_id, role)
+-- SELECT p.id, ':user_id'::uuid, 'pm' FROM public.projects p JOIN public.workspaces w ON w.id = p.workspace_id WHERE p.slug = 'signalops-rollout';
