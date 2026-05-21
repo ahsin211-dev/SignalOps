@@ -10,6 +10,9 @@ export default function HomePage() {
           <Button asChild variant="ghost">
             <Link href="/login">Sign in</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/signup">Sign up</Link>
+          </Button>
           <Button asChild>
             <Link href="/login">Open console</Link>
           </Button>

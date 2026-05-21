@@ -5,15 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { countOpenHighRisks, countOverdueTasks, listActiveProjects } from "@/server/repositories/projects-repository";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id,name,status,health_score,workspace_id")
-    .is("deleted_at", null)
-    .order("updated_at", { ascending: false })
-    .limit(8);
+  const { data: projects } = await listActiveProjects(supabase, 8);
+  const overdueTasks = await countOverdueTasks(supabase);
+  const highRisks = await countOpenHighRisks(supabase);
 
   const { data: approvals } = await supabase
     .from("approval_requests")
@@ -39,6 +37,37 @@ export default async function DashboardPage() {
           <Link href="/projects">View projects</Link>
         </Button>
       </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue tasks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold">{overdueTasks}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Across all projects you can access.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Open high/critical risks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold">{highRisks}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Severity high or critical, not closed.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending approvals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold">{(approvals ?? []).length}</div>
+            <p className="mt-1 text-xs text-muted-foreground">AI proposals and drafts awaiting humans.</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

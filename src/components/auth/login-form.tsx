@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export function LoginForm({ searchParams: sp }: { searchParams: Record<string, string | undefined> }) {
   const router = useRouter();
@@ -98,6 +99,12 @@ export function LoginForm({ searchParams: sp }: { searchParams: Record<string, s
             Email me a magic link
           </Button>
         </form>
+        <p className="text-center text-sm text-muted-foreground">
+          Need an account?{" "}
+          <Link className="text-primary underline-offset-4 hover:underline" href="/signup">
+            Create one
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );
