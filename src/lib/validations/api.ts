@@ -13,3 +13,9 @@ export const transcriptUploadSchema = z.object({
   text: z.string().min(1).max(500_000),
   meetingAt: z.string().optional(),
 });
+
+export const signupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  fullName: z.string().min(1).max(120).optional(),
+});

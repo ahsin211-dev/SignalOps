@@ -17,6 +17,9 @@ export default function SettingsPage() {
           <Button asChild variant="secondary">
             <Link href="/settings/integrations">Manage integrations</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link href="/settings/team">Team & invites</Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/settings/slack">Slack</Link>
           </Button>

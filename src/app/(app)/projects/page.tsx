@@ -2,14 +2,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { listActiveProjects } from "@/server/repositories/projects-repository";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id,name,slug,status,health_score")
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  const { data: projects } = await listActiveProjects(supabase, 100);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">

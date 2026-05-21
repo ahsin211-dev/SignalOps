@@ -107,3 +107,13 @@ The compose file runs the web app and Redis. Provide `.env.local` with productio
 ## License
 
 Private / unlicensed by default — update this section for your distribution model.
+
+
+## Workspace invites
+
+After applying migrations, run `supabase/migrations/20240521120000_workspace_invite_accept.sql` (or keep it in order with the Supabase CLI) to add:
+
+- A workspace-member insert policy for admins
+- The `accept_workspace_invite(token)` RPC used by `/accept-invite`
+
+Workspace owners/admins can create invites from **Settings → Team & invites**. Invited users should create an account with the invited email, sign in, then redeem the token on `/accept-invite`.
